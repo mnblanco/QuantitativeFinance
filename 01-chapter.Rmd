@@ -1,0 +1,296 @@
+# Time Series Analysis
+
+```{r}
+library('urca')
+library(xts)
+library('vars')
+library('quantmod')
+library('tseries')
+options("getSymbols.yahoo.warning"=FALSE)
+options("getSymbols.warning4.0"=FALSE)
+```
+
+## Multivariate time series analysis
+
+### Cointegration
+
+# generate the two time series of length 1000
+
+```{r}
+#Modify plot parameters
+par(font.axis=2, font.lab=2)
+
+set.seed(20140623)			#fix the random seed
+N <- 1000					      #define length of simulation
+x <- cumsum(rnorm(N))		#simulate a normal random walk
+gamma <- 0.7				    #set an initial parameter value
+y <- gamma * x + rnorm(N)	#simulate the cointegrating series
+plot(x, col="blue", type='l', lwd=2, ylab='simulated values')	 		#plot the two series
+lines(y,col="red", lwd=2)
+legend(50,30,c("x","y"),lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red")) 
+```
+
+
+
+#statistical tests
+
+#ADF test for the simulated individual time series
+
+	#NULL: unit root exists
+	#reject NULL if test-statistic < critical value
+	
+```{r}
+summary(ur.df(x,type="none"))	
+summary(ur.df(y,type="none"))	
+```
+
+#take a linear combination of the series
+
+```{r}
+z <- y - gamma * x				
+plot(z,type='l')
+summary(ur.df(z,type="none"))	
+```
+
+$z_t$ clearly seems to be a white noise process; the rejection of the unit root is confirmed by the results of ADF tests
+
+Engle-Granger method of testing cointegration:
+1. Run a linear regression yt on xt (a simple OLS estimation).
+2. Test the residuals for the presence of a unit root.
+
+#Estimate the cointegrating relationship
+
+```{r}
+coin <- lm(y ~ x -1)		#regression without constant
+head(coin$resid)					#obtain the residuals
+summary(ur.df(coin$resid))	#ADF test of residuals
+```
+
+## Vector autoregressive models
+
+## VAR implementation example
+
+#download the data
+
+```{r}
+getSymbols('SNP', from='2004-01-02', to='2014-03-31')		#get S&P 500 index data
+getSymbols('MSFT', from='2004-01-02', to='2014-03-31')		#get Microsoft data
+getSymbols('DTB3', src='FRED')								#3-month T-Bill interest rates
+```
+
+
+#chart downloaded data
+
+```{r}
+chartSeries(MSFT)
+chartSeries(MSFT, theme=chartTheme('white'))
+```
+
+
+#obtain components of downloaded object
+
+```{r}
+Cl(MSFT) 	#closing prices
+Op(MSFT)	#open prices
+Hi(MSFT)	#daily highest price
+Lo(MSFT)	#daily lowest price
+ClCl(MSFT)	#close-to-close daily return
+Ad(MSFT)	#daily adjusted closing price
+chartSeries(ClCl(MSFT))	#a plotting example with shortcuts #***2078OT__01_04.png***
+```
+
+
+#indexing time series data
+
+```{r}
+DTB3.sub <- DTB3['2004-01-02/2014-03-31']
+```
+
+#Calculate returns
+
+```{r}
+SNP.ret  <- diff(log(Ad(SNP)))
+MSFT.ret <- diff(log(Ad(MSFT)))
+```
+
+#replace NA values
+
+```{r}
+DTB3.sub[is.na(DTB3.sub)] <- 0
+DTB3.sub <- na.omit(DTB3.sub)
+```
+
+#merge the three databases to get the same length
+
+```{r}
+dataDaily <- na.omit(merge(SNP.ret,MSFT.ret,DTB3.sub), join='inner')
+```
+
+#obtain monthly data
+
+```{r}
+SNP.M  <- to.monthly(SNP.ret)$SNP.ret.Close
+MSFT.M <- to.monthly(MSFT.ret)$MSFT.ret.Close
+DTB3.M <- to.monthly(DTB3.sub)$DTB3.sub.Close
+```
+
+#Fit a simple VAR model to the data
+
+```{r}
+var1 <- VAR(dataDaily, lag.max=4, ic="AIC")
+VARselect(dataDaily,lag.max=4)
+summary(var1)
+var1
+```
+
+
+
+
+#obtain the results
+
+
+```{r}
+summary(var1)
+var1
+var1$varresult
+var1$type
+var1$p
+var1$K
+var1$obs
+var1$totobs
+var1$restrictions
+var1$call
+plot(var1) 		#Diagram of fit and residuals for each variables
+coef(var1)		#concise summary of the estimated variables
+residuals(var1)	#list of residuals (of the corresponding ~lm)
+fitted(var1)	#list of fitted values
+Phi(var1)		#coefficient matrices of VMA representation
+plot(var1, plot.type='multiple')
+```
+
+#impulse responses
+
+```{r}
+var.irf <- irf(var1, ci=0.9)
+plot(var.irf)
+```
+
+#forecast based on a VAR model
+
+```{r}
+var.pred <- predict(var1, n.ahead=10, ci=0.95)
+plot(var.pred)
+```
+
+# SVAR
+
+#if k=3, we need 3*4/2=6 additional retriction
+
+```{r}
+amat <- diag(3)
+amat[2, 1] <- NA
+amat[2, 3] <- NA
+amat[3, 1] <- NA
+svar1 <- SVAR(var1, estmethod='direct', Amat = amat)
+irf.svar1 <- irf(svar1)
+plot(irf.svar1)
+```
+
+#*****************************
+# Cointegrated VAR and VECM
+#*****************************
+
+#Load data
+
+```{r}
+getSymbols('DTB3', src='FRED')			#3-months T-Bill secondary market rate
+getSymbols('DTB6', src='FRED')			#6-months T-Bill secondary market rate
+DTB3.sub = DTB3['1984-01-02/2014-03-31']
+DTB6.sub = DTB6['1984-01-02/2014-03-31']
+```
+
+#plot data
+
+```{r}
+plot(DTB3.sub)
+lines(DTB6.sub, col='red')
+```
+
+#Unit root tests. Null: there is unit root.
+	
+
+```{r}
+summary(ur.df(na.omit(DTB3.sub),type="none"))	
+summary(ur.df(na.omit(DTB6.sub),type="none"))
+```
+
+#********************************************************
+# Built-in methods: Phillips?Ouliaris Cointegration Test
+#********************************************************
+
+```{r}
+x1=as.numeric(na.omit(DTB3.sub))
+x2=as.numeric(na.omit(DTB6.sub))
+y = cbind(x1,x2)
+```
+
+
+#Null hypothesis: series are NOT cointegrated.
+
+```{r}
+po.coint <- po.test(y, demean = TRUE, lshort = TRUE)
+```
+
+
+# Built-in methods: ca.jo
+
+#estimation using ca.jo() - Johansen approach
+
+```{r}
+y = cbind(na.omit(DTB3.sub),na.omit(DTB6.sub))
+yJoTest = ca.jo(y, type = c("trace"), ecdet = c("none"), K = 2)
+#yJoRegr = cajorls(dyTest, r=1)
+```
+
+
+# Custom method: Engle-Granger step-by-step
+
+#Straight linear regression without constant ***on levels***
+
+```{r}
+cregr <- lm(x1 ~ x2)
+```
+
+#OBtain residuals
+
+```{r}
+r = cregr$residuals
+```
+
+#Obtain differenced series (numeric format)
+
+```{r}
+y = cbind(x1,x2)
+dy = cbind(diff(x1),diff(x2))
+```
+
+#Generate lagged variables, and adjust time series lengths respectively
+
+```{r}
+dylag1 = lag(dy)
+dylag2 = lag(lag(dy))
+dy = dy[4:end(dy),]
+dylag1 = dylag1[3:end(dylag1),]
+dylag2 = dylag2[2:end(dylag2),]
+r = r[4:(end(r)-1)]
+```
+
+#VECM model, two equations: regression on differenced lags and the error term
+
+```{r}
+lmVecmLag1Var1 <- lm(dy[,1] ~  dylag1[,1] + dylag1[,2] + r )
+lmVecmLag1Var2 <- lm(dy[,2] ~  dylag1[,1] + dylag1[,2] + r )
+```
+
+
+

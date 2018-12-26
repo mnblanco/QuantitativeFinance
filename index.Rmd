@@ -1,0 +1,20 @@
+--- 
+title: "Mastering R for Quantitative Finance Solution"
+author: "Marjorie Blanco"
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+documentclass: book
+bibliography: [book.bib, packages.bib]
+biblio-style: apalike
+link-citations: yes
+description: "This contains the solutions to the exercises in the book,
+  Mastering R for Quantitative Finance, by Edina Berlinger."
+---
+
+# Welcome {-}
+
+This contains solutions to the exercise in *Mastering R for Quantitative Finance* by Edina Berlinge.
+
+This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International License</a>
+
+<a rel="license" href="http://creativecommons.org/licenses/by/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by/4.0/88x31.png" /></a><br />

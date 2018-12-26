@@ -1,0 +1,10 @@
+output_dir: "_book"
+new_session: yes
+
+book_filename: "qf"
+language:
+  ui:
+    chapter_name: "Chapter "
+
+delete_merged_file: true
+edit: "https://github.com/mnblanco/QuantitativeFinance/edit/master/%s"
